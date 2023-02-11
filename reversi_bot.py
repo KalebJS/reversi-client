@@ -107,8 +107,8 @@ class ReversiBot:
 
         for new_move in move_state.get_valid_moves():
             score = self.minimax(move_state, new_move, depth - 1, not is_maximizing, alpha, beta)
-            # current_score = self.evaluate_board(move_state)
-            # score = current_score * 0.55 + score * 0.45
+            current_score = self.evaluate_board(move_state)
+            score = current_score * 0.20 + score * 0.80
             best_score = f(score, best_score)
 
             if is_maximizing:
