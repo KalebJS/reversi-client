@@ -1,6 +1,6 @@
+from functools import lru_cache
 import itertools
 from typing import Tuple
-
 import numpy as np
 
 
@@ -47,6 +47,7 @@ class ReversiGameState:
     def get_player_pieces(self, player_id: int):
         return np.sum(self.board == player_id)
 
+    @lru_cache
     def get_valid_moves(self):
         valid_moves = []
 
@@ -81,7 +82,14 @@ class ReversiGameState:
                         new_board[move[0] + j * ydir, move[1] + j * xdir] = self.turn
                     break
         new_board[move] = self.turn
-        return ReversiGameState(new_board, 1 if self.turn == 2 else 2)
+        new_state = ReversiGameState(new_board, 1 if self.turn == 2 else 2)
+        if not new_state.get_valid_moves():
+            new_state.turn = 1 if new_state.turn == 2 else 2
+        return new_state
+
+    def turns_remaining(self):
+        # TODO - this is a bit of a hack, but it works for now
+        return np.sum(self.board == 0)
 
     def __hash__(self):
         return hash(self.board.data.tobytes())

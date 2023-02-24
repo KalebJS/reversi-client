@@ -5,10 +5,6 @@ from typing import Tuple, Union
 
 from state import ReversiGameState
 
-MAX_DEPTH = 8
-CORNER_PIECE_VALUE = 5
-EDGE_PIECE_VALUE = 2
-
 
 class ReversiBot:
     def __init__(self, move_num):
@@ -17,63 +13,36 @@ class ReversiBot:
         self.opponent_id = None
         self.evaluations = 0
 
-    @lru_cache()
-    def evaluate_board(self, state: ReversiGameState):
+    @lru_cache
+    def evaluate_board(self, state: ReversiGameState) -> int:
+        ...
+
+    def heuristic(self, state: ReversiGameState):
+        moves_left = state.turns_remaining()
+
         """
-        This function should take a board and return a score for the board.
-        The score should be a number that is higher if the board is better
-        for the player whose turn it is and lower if the board is better
-        for the other player.
+        Possible Heuristics:
+            Disc Count
+            Disc parity (difference in disc quantity between players)
+            Available moves
+            Corners captured
+            Edges captured
+            Unflippable Discs/Stability matrix (calculate the stability of each disc in a range from 0 to 1)
+            Danger zones/Frontiers (Close to edge/close to corner if those edges/corners are not yet taken, or on the outside of a cluster of discs)
+            Control center of the board at the beginning, edges at the end?
+            Connectivity/Full sides captured (from corner to corner or other long chains of discs)
+            Density? (clusters of discs, especially if they are all unflippable)
+            Flippable discs? (which of my tokens can get flipped)
+            Threat blocking? (when the enemy has the option to flip many of our tokens, we neutralize the threat if possible to avoid losing discs)
+            Sacrifice potential (sacrificing a disc or several discs may be worth it to get an advantages position on the board)    
+            Initiative/momentum (calculates which player has the momentum in the game, that forces )
         """
-        self.evaluations += 1
-        own_pieces = state.get_player_pieces(self.own_id)
-        opponent_pieces = state.get_player_pieces(self.opponent_id)
-
-        # Corner pieces are worth 10 points
-        own_corner_pieces = 0
-        opponent_corner_pieces = 0
-        for row, col in itertools.product(range(state.board_dim), range(state.board_dim)):
-            if state.board[row, col] == self.own_id:
-                if row in [0, state.board_dim - 1] and col in [0, state.board_dim - 1]:
-                    own_corner_pieces += CORNER_PIECE_VALUE
-            elif state.board[row, col] == self.opponent_id:
-                if row in [0, state.board_dim - 1] and col in [0, state.board_dim - 1]:
-                    opponent_corner_pieces += CORNER_PIECE_VALUE
-
-        # Edge pieces are worth 5 points
-        own_edge_pieces = 0
-        opponent_edge_pieces = 0
-        for row, col in itertools.product(range(state.board_dim), range(state.board_dim)):
-            if state.board[row, col] == self.own_id:
-                if row in [0, state.board_dim - 1] and col in [0, state.board_dim - 1]:
-                    own_corner_pieces += EDGE_PIECE_VALUE
-                elif row == 0 or row == state.board_dim - 1 or col == 0 or col == state.board_dim - 1:
-                    own_edge_pieces += EDGE_PIECE_VALUE
-            elif state.board[row, col] == self.opponent_id:
-                if row in [0, state.board_dim - 1] and col in [0, state.board_dim - 1]:
-                    opponent_corner_pieces += EDGE_PIECE_VALUE
-                elif row == 0 or row == state.board_dim - 1 or col == 0 or col == state.board_dim - 1:
-                    opponent_edge_pieces += EDGE_PIECE_VALUE
-
-        # TODO: add a heuristic for the number of pieces that can be flipped
-        # TODO: add a heuristic for the number of edge pieces that can be flipped
-        # TODO: adjust weights of the heuristics depending on the number of moves remaining
-
-        return (
-            own_pieces
-            - opponent_pieces
-            + own_corner_pieces
-            - opponent_corner_pieces
-            + own_edge_pieces
-            - opponent_edge_pieces
-        )
 
     def minimax(
         self,
         state: ReversiGameState,
         move: Tuple[int, int],
         depth: int,
-        is_maximizing: bool,
         alpha: Union[float, int],
         beta: Union[float, int],
     ) -> int:
@@ -93,9 +62,8 @@ class ReversiBot:
         """
 
         move_state = state.simulate_move(move)
-        # NOTE: the second condition may be problematic since the bot won't be able to see past
-        # situations where it has no valid moves, which could be winning games.
-        if depth == 0 or not move_state.get_valid_moves():
+        is_maximizing = move_state.turn == self.own_id
+        if depth == 0 or not move_state.turns_remaining():
             return self.evaluate_board(move_state)
 
         if is_maximizing:
@@ -105,10 +73,8 @@ class ReversiBot:
             best_score = float("inf")
             f = min
 
-        current_score = self.evaluate_board(move_state)
         for new_move in move_state.get_valid_moves():
-            score = self.minimax(move_state, new_move, depth - 1, not is_maximizing, alpha, beta)
-            score = current_score * 0.20 + score * 0.80
+            score = self.minimax(move_state, new_move, depth - 1, alpha, beta)
             best_score = f(score, best_score)
 
             if is_maximizing:
@@ -140,23 +106,9 @@ class ReversiBot:
 
         Move should be a tuple (row, col) of the move you want the bot to make.
         """
-        self.own_id = state.turn
-        self.opponent_id = 1 if state.turn == 2 else 2
-
-        depth = min(MAX_DEPTH, self.move_num // 5 + 1)
-
-        moves = [
-            (self.minimax(state, move, depth, is_maximizing=True, alpha=float("-inf"), beta=float("inf")), move)
-            for move in state.get_valid_moves()
-        ]
-        _, move = max(moves, key=lambda x: x[0])
-
-        print(self.evaluations)
-
-        self.move_num += 1
-        return move
-
-    def random_move(self, state: ReversiGameState):
         valid_moves = state.get_valid_moves()
+        for move in valid_moves:
+            self.minimax(state, move, 3, state.turn == self.own_id, float("-inf"), float("inf"))
         self.move_num += 1
+
         return rand.choice(valid_moves)
