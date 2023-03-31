@@ -45,6 +45,7 @@ class ReversiGameState:
                     return True
 
     def get_player_pieces(self, player_id: int):
+        # get a sum of all pieces on board that == player_id
         return np.sum(self.board == player_id)
 
     @lru_cache
@@ -92,4 +93,4 @@ class ReversiGameState:
         return np.sum(self.board == 0)
 
     def __hash__(self):
-        return hash(self.board.data.tobytes())
+        return hash(self.board.tostring())

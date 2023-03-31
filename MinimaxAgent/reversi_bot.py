@@ -3,13 +3,14 @@ import random as rand
 import time
 import reversi
 
+
 class ReversiBot:
     def __init__(self, move_num):
         print(move_num)
         self.move_num = move_num
 
     def make_move(self, state):
-        '''
+        """
         This is the only function that needs to be implemented for the lab!
         The bot should take a game state and return a move.
 
@@ -26,33 +27,33 @@ class ReversiBot:
         moves for that state is returned in the form of a list of tuples.
 
         Move should be a tuple (row, col) of the move you want the bot to make.
-        '''
+        """
 
         validMoves = state.get_valid_moves()
         startingMoves = [(3, 3), (3, 4), (4, 3), (4, 4)]
         playerNum = state.turn
 
         if (playerNum == 1) and (validMoves == startingMoves):
-            move = (3,3)
+            move = (3, 3)
             return move
         withinStartingMoves = False
 
         for move in validMoves:
-            if (move == (3,3)) or (move == (3,4)) or (move == (4,3)) or (move == (4,4)):
+            if (move == (3, 3)) or (move == (3, 4)) or (move == (4, 3)) or (move == (4, 4)):
                 withinStartingMoves = True
-        
-        if withinStartingMoves == True:
-            move = rand.choice(validMoves) # Moves randomly at the beginning
-            return move
-        
 
-        '''
+        if withinStartingMoves == True:
+            move = rand.choice(validMoves)  # Moves randomly at the beginning
+            return move
+
+        """
         UpdateBoard function updates the next turn in the game for the minimax algorithm to predict what will happen next
-        '''
+        """
+
         def UpdateBoard(board, x, y, playerNum):
             # Define the 8 directions to check for captured pieces
             directions = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
-            
+
             for dx, dy in directions:
                 i = x + dx
                 j = y + dy
@@ -79,7 +80,7 @@ class ReversiBot:
                             i -= dx
                             j -= dy
             return board
-        
+
         def Minimax2(currentGameBoard, possibleMoves, player, depth, maxDepth, isEnemyTurn):
             # Assign player values according to the player variable
             currentPlayer = 1 if player == 1 else 2
@@ -92,7 +93,6 @@ class ReversiBot:
                     if currentGameBoard[i][j] == 0:
                         numTurnsLeft += 1
             if (numTurnsLeft > 1) and (numTurnsLeft < maxDepth * 2):
-                
                 # print("NUMTURNSLEFT IS TOO SMALL")
                 # print(numTurnsLeft)
                 # print(maxDepth)
@@ -103,7 +103,7 @@ class ReversiBot:
                 return possibleMoves
             # print(maxDepth)
 
-            # Loop through the possible game board trees 
+            # Loop through the possible game board trees
             branchTotals = []
             nextBranchValues = []
             currentBranch = []
@@ -132,11 +132,14 @@ class ReversiBot:
                     branchTotals.append(newBranchTotal)
                 else:
                     if isEnemyTurn:
-                        nextBranchValues.append(Minimax2(nextGameBoard, nextPlayerValidMoves, nextPlayer, depth + 1, maxDepth, False))
+                        nextBranchValues.append(
+                            Minimax2(nextGameBoard, nextPlayerValidMoves, nextPlayer, depth + 1, maxDepth, False)
+                        )
                     else:
-                        nextBranchValues.append(Minimax2(nextGameBoard, nextPlayerValidMoves, nextPlayer, depth, maxDepth, True))
+                        nextBranchValues.append(
+                            Minimax2(nextGameBoard, nextPlayerValidMoves, nextPlayer, depth, maxDepth, True)
+                        )
                     currentBranch.append((x, y))
-
 
             if (depth == maxDepth) and (isEnemyTurn):
                 minValue = 0
@@ -152,7 +155,7 @@ class ReversiBot:
                                 minValue = branchTotals[i][2]
                                 minInt = i
                 except:
-                        return rand.choice(possibleMoves)
+                    return rand.choice(possibleMoves)
                 try:
                     bestChoice = branchTotals[minInt]
                 except:
@@ -190,18 +193,20 @@ class ReversiBot:
                         valueIndex = maxInt
                     except:
                         return rand.choice(possibleMoves)
-                    
+
                 # print("CurrentValue = " + str(currentBranch))
                 # print("nextBranchValues = " + str(nextBranchValues))
                 # print("possible moves = " + str(possibleMoves))
                 try:
-                    finalValue = (currentBranch[valueIndex][0], currentBranch[valueIndex][1], nextBranchValues[valueIndex][2])
+                    finalValue = (
+                        currentBranch[valueIndex][0],
+                        currentBranch[valueIndex][1],
+                        nextBranchValues[valueIndex][2],
+                    )
                 except:
                     return rand.choice(possibleMoves)
-                
-                return finalValue
 
-    
+                return finalValue
 
         print("------------------------------------------------------------------------")
         maxDepth = 2

@@ -8,6 +8,7 @@ import random
 memo = {}
 moveNumber = 0
 
+
 class ReversiBot:
     def __init__(self, move_num):
         global moveNumber
@@ -16,7 +17,7 @@ class ReversiBot:
         moveNumber = move_num
 
     def make_move(self, state):
-        '''
+        """
         This is the only function that needs to be implemented for the lab!
         The bot should take a game state and return a move.
 
@@ -33,7 +34,7 @@ class ReversiBot:
         moves for that state is returned in the form of a list of tuples.
 
         Move should be a tuple (row, col) of the move you want the bot to make.
-        '''
+        """
 
         validMoves = state.get_valid_moves()
         startingMoves = [(3, 3), (3, 4), (4, 3), (4, 4)]
@@ -41,26 +42,26 @@ class ReversiBot:
         nextPlayer = 2 if playerNum == 1 else 1
 
         if (playerNum == 1) and (validMoves == startingMoves):
-            move = (3,3)
+            move = (3, 3)
             return move
         withinStartingMoves = False
 
         for move in validMoves:
-            if (move == (3,3)) or (move == (3,4)) or (move == (4,3)) or (move == (4,4)):
+            if (move == (3, 3)) or (move == (3, 4)) or (move == (4, 3)) or (move == (4, 4)):
                 withinStartingMoves = True
-        
-        if withinStartingMoves == True:
-            move = rand.choice(validMoves) # Moves randomly at the beginning
-            return move
-        
 
-        '''
+        if withinStartingMoves == True:
+            move = rand.choice(validMoves)  # Moves randomly at the beginning
+            return move
+
+        """
         UpdateBoard function updates the next turn in the game for the minimax algorithm to predict what will happen next
-        '''
+        """
+
         def UpdateBoard(board, x, y, playerNum):
             # Define the 8 directions to check for captured pieces
             directions = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
-            
+
             for dx, dy in directions:
                 i = x + dx
                 j = y + dy
@@ -87,11 +88,10 @@ class ReversiBot:
                             i -= dx
                             j -= dy
             return board
-            
-        def heuristic_evaluation(board, player):
 
+        def heuristic_evaluation(board, player):
             opponent = 3 - player
-    
+
             me = reversi.ReversiGameState(board, player)
             enemy = reversi.ReversiGameState(board, opponent)
             my_moves = len(me.get_valid_moves())
@@ -104,7 +104,12 @@ class ReversiBot:
             my_corners = np.sum([board[x, y] == player for x, y in corners])
             opp_corners = np.sum([board[x, y] == opponent for x, y in corners])
             corner_occupancy = 25 * (my_corners - opp_corners) / 4
-            edge_indices = [(0, i) for i in range(1, 7)] + [(7, i) for i in range(1, 7)] + [(i, 0) for i in range(1, 7)] + [(i, 7) for i in range(1, 7)]
+            edge_indices = (
+                [(0, i) for i in range(1, 7)]
+                + [(7, i) for i in range(1, 7)]
+                + [(i, 0) for i in range(1, 7)]
+                + [(i, 7) for i in range(1, 7)]
+            )
             my_edges = np.sum([board[x, y] == player for x, y in edge_indices])
             opp_edges = np.sum([board[x, y] == opponent for x, y in edge_indices])
             edge_discs = -12.5 * (my_edges - opp_edges) / 32
@@ -121,7 +126,20 @@ class ReversiBot:
                                     break
             unflippable_disks = -unflippable_disks
             corner_closeness = 0
-            adj_corners = [(0, 1), (1, 0), (1, 1), (0, 6), (1, 7), (1, 6), (6, 0), (7, 1), (6, 1), (7, 6), (6, 7), (6, 6)]
+            adj_corners = [
+                (0, 1),
+                (1, 0),
+                (1, 1),
+                (0, 6),
+                (1, 7),
+                (1, 6),
+                (6, 0),
+                (7, 1),
+                (6, 1),
+                (7, 6),
+                (6, 7),
+                (6, 6),
+            ]
             for i, j in adj_corners:
                 if board[i, j] == player:
                     corner_closeness -= 2
@@ -129,8 +147,15 @@ class ReversiBot:
             my_center = np.sum([board[x, y] == player for x, y in center_indices])
             opp_center = np.sum([board[x, y] == opponent for x, y in center_indices])
             center = (5 - (my_center - opp_center)) / 5
-            return 1 * disk_parity + 10 * corner_occupancy + 6 *edge_discs +  4 * mobility +  6 * unflippable_disks +  -8 * corner_closeness + 3 * center
-
+            return (
+                1 * disk_parity
+                + 10 * corner_occupancy
+                + 6 * edge_discs
+                + 4 * mobility
+                + 6 * unflippable_disks
+                + -8 * corner_closeness
+                + 3 * center
+            )
 
         def save_memo():
             with shelve.open("memo_dict") as db:
@@ -160,7 +185,6 @@ class ReversiBot:
                     nextState = reversi.ReversiGameState(nextGameBoard, nextPlayer)
                     nextPlayerValidMoves = nextState.get_valid_moves()
 
-                    
                     # board[x, y] = player
                     _, value = alpha_beta_reversi(nextGameBoard, nextPlayerValidMoves, 2, depth - 1, alpha, beta)
                     # board[x, y] = 0
@@ -187,7 +211,7 @@ class ReversiBot:
                     nextPlayerValidMoves = nextState.get_valid_moves()
 
                     _, value = alpha_beta_reversi(board, moves, 1, depth - 1, alpha, beta)
-                    
+
                     # board[x, y] = 0
                     move_values.append((move, value))
                     beta = min(beta, value)
@@ -200,15 +224,14 @@ class ReversiBot:
                 memo[state] = (best_move, best_value)
                 return (best_move, best_value)
 
-
         print("------------------------------------------------------------------------")
         maxDepth = 8
         # finalCoinValues = []
-        
+
         time0 = time.time()
-        
+
         if moveNumber == 2:
-            randomVariable = random.randint(0,100)
+            randomVariable = random.randint(0, 100)
             if randomVariable < 35:
                 print("RANDOM")
                 return rand.choice(validMoves)

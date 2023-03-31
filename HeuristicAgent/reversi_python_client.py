@@ -1,7 +1,7 @@
 import reversi
 import sys
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     server_address = sys.argv[1]
     bot_move_number = int(sys.argv[2])
 
