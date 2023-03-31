@@ -1,4 +1,5 @@
 import itertools
+import numpy as np
 import random as rand
 from functools import lru_cache
 from typing import Tuple, Union
@@ -17,26 +18,83 @@ class ReversiBot:
     def evaluate_board(self, state: ReversiGameState) -> int:
         ...
 
+    
+    def discCount(state: ReversiGameState):
+        # Get total discs for the current player
+        return np.sum(state.board == state.turn)
+    def discParity(state: ReversiGameState):
+        # Get the difference in discs from the perspective of the current player (positive if more than enemy, negative if less than enemy)
+        return np.sum(state.board == state.turn) - np.sum(state.board == (3 - state.turn))
+    def availableMoves(state: ReversiGameState):
+        # How many moves can the current player make from this position (how many can the enemy make as well?)
+        ...
+    def cornersCaptured(state: ReversiGameState):
+        # Get the number of corners captured by the current player
+        totalCorners = 0
+        corners = [(0,0),(0,7),(7,0),(7,7)]
+        for corner in corners:
+            if state.board[corner[0]][corner[1]] == state.turn:
+                totalCorners += 1
+        return totalCorners
+    def edgesCaptured(state: ReversiGameState):
+        # Get the number of edges captured by the current player
+        totalEdges = 0
+        for point in state.board:
+            if (point[0] == 0 or point[0] == 7) and (point[1] < 7 and point[1] > 0) and (point == state.turn):
+                totalEdges += 1
+            elif (point[0] != 0 and point[0] != 7) and (point[1] == 0 or point[1] == 7) and ([point == state.turn]):
+                totalEdges += 1
+        return totalEdges
+    def fullEdgesCaptured(state: ReversiGameState):
+        # Get the number of complete edges captured by the current player
+        totalSides = 0
+        ...
+    def permanantUnflippableDiscs(state: ReversiGameState):
+        # Get the number of unflippable discs
+        ...
+    def tempUnflippableDiscs(state: ReversiGameState):
+        # Get the number of unflippable discs
+        ...
+    def dangerZones(state: ReversiGameState):
+        # Spaces that allow the enemy to capture crucial locations (within 1 of corners and edges), maybe make multiple of these
+        # equations if the weighted values are different between edges and corners
+        ...
+    def boardControl(state: ReversiGameState):
+        # Depending on the state of the game, who has more board control, this may just be the same as the availableMoves() function
+        ...
+    def discDensity(state: ReversiGameState):
+        # Finds clusters of discs, specifically if they are unflippable
+        ...
+    
+    # Main heuristic function that calls the other various heuristic functions and applies multipliers to them
     def heuristic(self, state: ReversiGameState):
+        # We may change multiplier values based on the number of turns left
+        '''
+        TODO: DON'T FORGET TO CHANGE THE HEURISTIC SUCH THAT IT IS ALWAYS MAXIMIZING OUR PLAYER VALUES, NOT BOTH PLAYER VALUES
+        TODO: DON'T FORGET TO CHANGE THE HEURISTIC SUCH THAT IT IS ALWAYS MAXIMIZING OUR PLAYER VALUES, NOT BOTH PLAYER VALUES
+        TODO: DON'T FORGET TO CHANGE THE HEURISTIC SUCH THAT IT IS ALWAYS MAXIMIZING OUR PLAYER VALUES, NOT BOTH PLAYER VALUES
+        TODO: DON'T FORGET TO CHANGE THE HEURISTIC SUCH THAT IT IS ALWAYS MAXIMIZING OUR PLAYER VALUES, NOT BOTH PLAYER VALUES
+        TODO: DON'T FORGET TO CHANGE THE HEURISTIC SUCH THAT IT IS ALWAYS MAXIMIZING OUR PLAYER VALUES, NOT BOTH PLAYER VALUES
+        TODO: DON'T FORGET TO CHANGE THE HEURISTIC SUCH THAT IT IS ALWAYS MAXIMIZING OUR PLAYER VALUES, NOT BOTH PLAYER VALUES
+        '''
         moves_left = state.turns_remaining()
 
-        """
-        Possible Heuristics:
-            Disc Count
-            Disc parity (difference in disc quantity between players)
-            Available moves
-            Corners captured
-            Edges captured
-            Unflippable Discs/Stability matrix (calculate the stability of each disc in a range from 0 to 1)
-            Danger zones/Frontiers (Close to edge/close to corner if those edges/corners are not yet taken, or on the outside of a cluster of discs)
-            Control center of the board at the beginning, edges at the end?
-            Connectivity/Full sides captured (from corner to corner or other long chains of discs)
-            Density? (clusters of discs, especially if they are all unflippable)
-            Flippable discs? (which of my tokens can get flipped)
-            Threat blocking? (when the enemy has the option to flip many of our tokens, we neutralize the threat if possible to avoid losing discs)
-            Sacrifice potential (sacrificing a disc or several discs may be worth it to get an advantages position on the board)    
-            Initiative/momentum (calculates which player has the momentum in the game, that forces )
-        """
+        discs = discCount(state)
+        parity = discParity(state)
+        mobility = availableMoves(state)
+        corners = cornersCaptured(state)
+        edges = edgesCaptured(state)
+        sides
+        permanentUnflippable
+        tempUnflippable
+        riskySpace
+        control
+        density
+
+
+
+        return 0
+
 
     def minimax(
         self,
