@@ -64,23 +64,6 @@ class ReversiBot:
 
     def fullEdgesCaptured(self, state: ReversiGameState):
         # Get the number of complete edges captured by the current player
-        # totalSides = 0
-        # sidePoints = [[(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(0,7)], [(7,0),(7,1),(7,2),(7,3),(7,4),(7,5),(7,6),(7,7)], 
-        #               [(0,0),(1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0)], [(0,7),(1,7),(2,7),(3,7),(4,7),(5,7),(6,7),(7,7)]]
-        
-        # sideSpaces = 0
-        # for side in sidePoints:
-        #     for point in side:
-        #         if state.board[point[0]][point[1]] == state.turn:
-        #             sideSpaces += 1
-        #     if sideSpaces == 8:
-        #         totalSides += 1
-        #     sideSpaces = 0
-
-        # return totalSides
-
-        '''Possible implementation of the full edges captures (CHATGPT)'''
-        # Get the number of complete edges captured by the current player
         player_mask = state.board == state.turn
         row_mask = (1 << 8) - 1
 
@@ -120,7 +103,7 @@ class ReversiBot:
         edge_mask[0, :] = edge_mask[7, :] = edge_mask[:, 0] = edge_mask[:, 7] = True
         edge_mask = edge_mask & (~corner_mask)
 
-        # Define masks for squares that can be reached by opponent's disc but player cannot flip them
+        # Define masks for squares that can be permanently unflippable
         unflippable_mask = np.zeros((8, 8), dtype=bool)
 
         # Check corners
@@ -154,47 +137,81 @@ class ReversiBot:
 
             if edge_mask[i, 0]:
                 if (state.board[i-1, 0] == (3 - state.turn) and state.board[i+1, 0] == (3 - state.turn) and
-                        state.board[i, 1] == (3 - state.turn)):
+                    state.board[i, 1] == (3 - state.turn)):
                     unflippable_mask[i, 0] = True
+                    if edge_mask[i, 7]:
+                        if (state.board[i-1, 7] == (3 - state.turn) and state.board[i+1, 7] == (3 - state.turn) and
+                                state.board[i, 6] == (3 - state.turn)):
+                            unflippable_mask[i, 7] = True
 
-            if edge_mask[i, 7]:
-                if (state.board[i-1, 7] == (3 - state.turn) and state.board[i+1, 7] == (3 - state.turn) and
-                        state.board[i, 6] == (3 - state.turn)):
-                    unflippable_mask[i, 7] = True
+        # Count the number of unflippable discs
+        unflippable_discs = np.sum(unflippable_mask & player_mask)
 
-        # Check for clusters of unflippable discs
-        for r in range(8):
-            for c in range(8):
-                if player_mask[r, c]:
-                    # Check if the current player can reach at least one of the unflippable discs
-                    if (r > 0 and unflippable_mask[r-1, c] and (state.board[r-1, c] == (3 - state.turn) or state.board[r-1, c] == 0)) \
-                            or (r < 7 and unflippable_mask[r+1, c] and (state.board[r+1, c] == (3 - state.turn) or state.board[r+1, c] == 0)) \
-                            or (c > 0 and unflippable_mask[r, c-1] and (state.board[r, c-1] == (3 - state.turn) or state.board[r, c-1] == 0)) \
-                            or (c < 7 and unflippable_mask[r, c+1] and (state.board[r, c+1] == (3 - state.turn) or state.board[r, c+1] == 0)) \
-                            or (r > 0 and c > 0 and unflippable_mask[r-1, c-1] and (state.board[r-1, c-1] == (3 - state.turn) or state.board[r-1, c-1] == 0)) \
-                            or (r > 0 and c < 7 and unflippable_mask[r-1, c+1] and (state.board[r-1, c+1] == (3 - state.turn) or state.board[r-1, c+1] == 0)) \
-                            or (r < 7 and c > 0 and unflippable_mask[r+1, c-1] and (state.board[r+1, c-1] == (3 - state.turn) or state.board[r+1, c-1] == 0)) \
-                            or (r < 7 and c < 7 and unflippable_mask[r+1, c+1] and (state.board[r+1, c+1] == (3 - state.turn) or state.board[r+1, c+1] == 0)):
-                        unflippable_mask[r, c] = True
-
-        # Return the number of unflippable discs
-        return np.count_nonzero(unflippable_mask)
+        return unflippable_discs
 
     def tempUnflippableDiscs(self, state: ReversiGameState):
-        pass
-
-    def dangerZones(self, state: ReversiGameState):
-        # Spaces that allow the enemy to capture crucial locations (within 1 of corners and edges), maybe make multiple of these
-        # equations if the weighted values are different between edges and corners
-        ...
-
-    def boardControl(self, state: ReversiGameState):
-        # Depending on the state of the game, who has more board control, this may just be the same as the availableMoves() function
-        ...
+        # Define a mask for the current player's discs
+        player_mask = state.board == state.turn
         
-    def discDensity(self, state: ReversiGameState):
-        # Finds clusters of discs, specifically if they are unflippable
+        # Define a mask for the opponent's discs
+        opp_mask = state.board == (3 - state.turn)
+        
+        # Define a mask for empty squares
+        empty_mask = (state.board == 0)
+        
+        # Get the set of legal moves for the current player
+        legal_moves = state.get_legal_actions()
+        
+        # Define a mask for squares that can be temporarily unflippable
+        unflippable_mask = np.zeros((8, 8), dtype=bool)
+        
+        # Iterate over each legal move
+        for move in legal_moves:
+            # Get the coordinates of the move
+            row, col = move
+            
+            # Define a mask for the squares surrounding the move
+            surround_mask = np.zeros((8, 8), dtype=bool)
+            surround_mask[max(0, row-1):min(7, row+1)+1, max(0, col-1):min(7, col+1)+1] = True
+            surround_mask[row, col] = False
+            
+            # Check if any of the surrounding squares contain an opponent's disc
+            if np.any(opp_mask & surround_mask):
+                # Get the direction of the opponent's disc
+                opp_direction = np.zeros((8, 8), dtype=bool)
+                opp_direction[row, col] = True
+                
+                # Check in each direction from the opponent's disc for an empty square
+                for drow, dcol in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+                    cur_row, cur_col = row + drow, col + dcol
+                    cur_direction = np.zeros((8, 8), dtype=bool)
+                    cur_direction[cur_row, cur_col] = True
+                    
+                    # Keep going in the same direction while we're on the board and we're on empty squares
+                    while (cur_row >= 0 and cur_row <= 7 and cur_col >= 0 and cur_col <= 7 and 
+                        empty_mask[cur_row, cur_col] and np.any(cur_direction & surround_mask)):
+                        cur_row += drow
+                        cur_col += dcol
+                        cur_direction[cur_row, cur_col] = True
+                    
+                    # If we've reached a player's disc, mark the squares between the opponent's disc and the player's disc as unflippable
+                    if (cur_row >= 0 and cur_row <= 7 and cur_col >= 0 and cur_col <= 7 and 
+                        player_mask[cur_row, cur_col] and np.any(cur_direction & surround_mask)):
+                        unflippable_mask[opp_direction] = True
+            
+        # Count the number of temporarily unflippable discs
+        unflippable_discs = np.sum(unflippable_mask & player_mask)
+        
+        return unflippable_discs
+
+    def cornerDangerZones(self, state: ReversiGameState):
+        # Spaces that allow the enemy to capture corners (within 1 diagonal space of an unclaimed corner)
         ...
+
+    def edgeDangerZones(self, state: ReversiGameState):
+        # Spaces that allow the enemy to capture edges (within 1 space of an unclaimed edge)
+        ...
+
     
     @cache
     def heuristic(self, state: ReversiGameState):
@@ -220,8 +237,6 @@ class ReversiBot:
         # unflippable = self.permanentUnflippableDiscs(state)
         # tempUnflippable = self.tempUnflippableDiscs(state)
         # riskySpace = self.riskySpace(state)
-        # control = self.controlSpace(state)
-        # density = self.discDensity(state)
         
         return state.get_player_pieces(self.own_id)
 
