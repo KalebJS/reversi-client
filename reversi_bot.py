@@ -152,7 +152,7 @@ class ReversiBot:
 
         iterate = 0
         # Change this to update while there was a change in the previous loop
-        while iterate < 15:
+        while iterate < 8:
             # Calculate which edges are unflippable
             for edge in edges:
                 row, col = edge
@@ -389,8 +389,6 @@ class ReversiBot:
             unflippable_weight = 0
             cornerDangerZone_weight = 0
             mobility_weight = 0
-        if moves_left <= 5:
-            ...
         if moves_left == 1:
             discs_weight = 100
             parity_weight = 0
@@ -481,7 +479,7 @@ class ReversiBot:
         """
         valid_moves = state.get_valid_moves()
         # more moves as it gets deeper into the game
-        depth = 4 + self.move_num // 10
+        depth = 1 + self.move_num // 10
         best, res = float("-inf"), None
         for move in valid_moves:
             score = self.minimax(state, move, depth, float("-inf"), float("inf"))
