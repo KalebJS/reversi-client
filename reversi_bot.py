@@ -327,49 +327,49 @@ class ReversiBot:
         mobility_weight = 0
 
         if moves_left <= 64:
-            discs_weight = 20
-            parity_weight = 5
+            discs_weight = 10
+            parity_weight = 15
             corners_weight = 15
-            edges_weight = 10
-            sides_weight = 15
-            unflippable_weight = 10
-            cornerDangerZone_weight = 5
+            edges_weight = 15
+            sides_weight = 10
+            unflippable_weight = 5
+            cornerDangerZone_weight = 10
             mobility_weight = 20
         if moves_left <= 50:
-            discs_weight = 15
-            parity_weight = 0
+            discs_weight = 10
+            parity_weight = 10
             corners_weight = 20
             edges_weight = 10
-            sides_weight = 10
-            unflippable_weight = 20
-            cornerDangerZone_weight = 10
+            sides_weight = 5
+            unflippable_weight = 10
+            cornerDangerZone_weight = 20
             mobility_weight = 15
         if moves_left <= 40:
-            discs_weight = 15
-            parity_weight = 0
+            discs_weight = 20
+            parity_weight = 10
             corners_weight = 20
             edges_weight = 10
-            sides_weight = 15
+            sides_weight = 5
             unflippable_weight = 20
             cornerDangerZone_weight = 10
-            mobility_weight = 10
+            mobility_weight = 5
         if moves_left <= 30:
             discs_weight = 20
-            parity_weight = 0
-            corners_weight = 15
-            edges_weight = 0
+            parity_weight = 10
+            corners_weight = 20
+            edges_weight = 5
             sides_weight = 20
-            unflippable_weight = 10
-            cornerDangerZone_weight = 10
+            unflippable_weight = 15
+            cornerDangerZone_weight = 5
             mobility_weight = 5
         if moves_left <= 20:
-            discs_weight = 40
-            parity_weight = 100
+            discs_weight = 35
+            parity_weight = 10
             corners_weight = 5
             edges_weight = 5
             sides_weight = 20
             unflippable_weight = 20
-            cornerDangerZone_weight = 0
+            cornerDangerZone_weight = 5
             mobility_weight = 0
         if moves_left <= 15:
             discs_weight = 65
@@ -385,15 +385,6 @@ class ReversiBot:
             parity_weight = 0
             corners_weight = 0
             edges_weight = 0
-            sides_weight = 0
-            unflippable_weight = 0
-            cornerDangerZone_weight = 0
-            mobility_weight = 0
-        if moves_left == 1:
-            discs_weight = 100
-            parity_weight = 0
-            corners_weight = 0
-            edges_weight =0
             sides_weight = 0
             unflippable_weight = 0
             cornerDangerZone_weight = 0
@@ -479,7 +470,7 @@ class ReversiBot:
         """
         valid_moves = state.get_valid_moves()
         # more moves as it gets deeper into the game
-        depth = 1 + self.move_num // 10
+        depth = 2 + self.move_num // 10
         best, res = float("-inf"), None
         for move in valid_moves:
             score = self.minimax(state, move, depth, float("-inf"), float("inf"))
@@ -487,7 +478,7 @@ class ReversiBot:
                 best = score
                 res = move
         self.move_num += 1
-
+        
         print(self.evaluations)
         return res 
 
