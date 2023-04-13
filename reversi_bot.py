@@ -1,7 +1,7 @@
 from pathlib import Path
 import numpy as np
 from functools import cache, wraps
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 from state import ReversiGameState
 import pickle
@@ -50,12 +50,18 @@ class ReversiBot:
         total_edges = 0
 
         # Check top and bottom rows
-        if np.all(player_mask[0, :]) or np.all(player_mask[7, :]):
-            total_edges += 1
+        for j in range(1, 7):
+            if player_mask[0, j]:
+                total_edges += 1
+            if player_mask[7, j]:
+                total_edges += 1
 
         # Check left and right columns
-        if np.all(player_mask[:, 0]) or np.all(player_mask[:, 7]):
-            total_edges += 1
+        for i in range(1, 7):
+            if player_mask[i, 0]:
+                total_edges += 1
+            if player_mask[i, 7]:
+                total_edges += 1
 
         return total_edges
 
@@ -85,166 +91,184 @@ class ReversiBot:
         return full_edges
         
     def permanentUnflippableDiscs(self, state: ReversiGameState):
-        # Get the number of unflippable discs
-        player_mask = state.board == self.own_id
+        board = state.board
+        unflippableTable = np.empty((8,8), dtype='U')
+        unflippableTable.fill('')
 
-        # Define masks for edge and corner squares
-        corner_mask = np.zeros((8, 8), dtype=bool)
-        corner_mask[0, 0] = corner_mask[0, 7] = corner_mask[7, 0] = corner_mask[7, 7] = True
-
-        edge_mask = np.zeros((8, 8), dtype=bool)
-        edge_mask[0, :] = edge_mask[7, :] = edge_mask[:, 0] = edge_mask[:, 7] = True
-        edge_mask = edge_mask & (~corner_mask)
-
-        # Define masks for squares that can be permanently unflippable
-        unflippable_mask = np.zeros((8, 8), dtype=bool)
-
-        # Check corners
-        if corner_mask[0, 0]:
-            if state.board[1, 0] == (3 - self.own_id) and state.board[0, 1] == (3 - self.own_id):
-                unflippable_mask[0, 0] = True
-
-        if corner_mask[0, 7]:
-            if state.board[0, 6] == (3 - self.own_id) and state.board[1, 7] == (3 - self.own_id):
-                unflippable_mask[0, 7] = True
-
-        if corner_mask[7, 0]:
-            if state.board[6, 0] == (3 - self.own_id) and state.board[7, 1] == (3 - self.own_id):
-                unflippable_mask[7, 0] = True
-
-        if corner_mask[7, 7]:
-            if state.board[6, 7] == (3 - self.own_id) and state.board[7, 6] == (3 - self.own_id):
-                unflippable_mask[7, 7] = True
-
-        # Check edges
-        for i in range(1, 7):
-            if edge_mask[0, i]:
-                if (state.board[0, i-1] == (3 - self.own_id) and state.board[0, i+1] == (3 - self.own_id) and
-                        state.board[1, i] == (3 - self.own_id)):
-                    unflippable_mask[0, i] = True
-
-            if edge_mask[7, i]:
-                if (state.board[7, i-1] == (3 - self.own_id) and state.board[7, i+1] == (3 - self.own_id) and
-                        state.board[6, i] == (3 - self.own_id)):
-                    unflippable_mask[7, i] = True
-
-            if edge_mask[i, 0]:
-                if (state.board[i-1, 0] == (3 - self.own_id) and state.board[i+1, 0] == (3 - self.own_id) and
-                    state.board[i, 1] == (3 - self.own_id)):
-                    unflippable_mask[i, 0] = True
-                    if edge_mask[i, 7]:
-                        if (state.board[i-1, 7] == (3 - self.own_id) and state.board[i+1, 7] == (3 - self.own_id) and
-                                state.board[i, 6] == (3 - self.own_id)):
-                            unflippable_mask[i, 7] = True
-
-        # Count the number of unflippable discs
-        unflippable_discs = np.sum(unflippable_mask & player_mask)
-
-        return unflippable_discs
-
-    def tempUnflippableDiscs(self, state: ReversiGameState):
-        # Define a mask for the current player's discs
-        player_mask = state.board == self.own_id
+        # Define the edges of the board
+        edges = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), 
+                 (1, 0),                                                 (1, 7), 
+                 (2, 0),                                                 (2, 7), 
+                 (3, 0),                                                 (3, 7), 
+                 (4, 0),                                                 (4, 7), 
+                 (5, 0),                                                 (5, 7), 
+                 (6, 0),                                                 (6, 7), 
+                 (7, 0), (7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6), (7, 7)]
         
-        # Define a mask for the opponent's discs
-        opp_mask = state.board == (3 - self.own_id)
-        
-        # Define a mask for empty squares
-        empty_mask = (state.board == 0)
-        
-        # Get the set of legal moves for the current player
-        legal_moves = state.get_valid_moves()
-        
-        # Define a mask for squares that can be temporarily unflippable
-        unflippable_mask = np.zeros((8, 8), dtype=bool)
-        
-        # Iterate over each legal move
-        for move in legal_moves:
-            # Get the coordinates of the move
-            row, col = move
-            
-            # Define a mask for the squares surrounding the move
-            surround_mask = np.zeros((8, 8), dtype=bool)
-            surround_mask[max(0, row-1):min(7, row+1)+1, max(0, col-1):min(7, col+1)+1] = True
-            surround_mask[row, col] = False
-            
-            # Check if any of the surrounding squares contain an opponent's disc
-            if np.any(opp_mask & surround_mask):
-                # Get the direction of the opponent's disc
-                opp_direction = np.zeros((8, 8), dtype=bool)
-                opp_direction[row, col] = True
-                
-                # Check in each direction from the opponent's disc for an empty square
-                for drow, dcol in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
-                    cur_row, cur_col = row + drow, col + dcol
-                    if cur_row < 0 or cur_row > 7 or cur_col < 0 or cur_col > 7:
+        # Define the four corners of the board
+        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+
+        # If a corner is owned, mark it as unflipabble
+        for corner in corners:
+            if board[corner[0]][corner[1]] == self.own_id:
+                unflippableTable[corner[0]][corner[1]] = 'u'
+
+        top_row = board[0]
+        bottom_row = board[7]
+        left_col = board[:, 0]
+        right_col = board[:, 7]
+        occupied_edges = []
+
+        # Check top and bottom rows
+        if np.array_equal(np.unique(top_row), np.array([1, 2])):
+            occupied_edges.append("top")
+        if np.array_equal(np.unique(bottom_row), np.array([1, 2])):
+            occupied_edges.append("bottom")
+
+        # Check left and right columns
+        if np.array_equal(np.unique(left_col), np.array([1, 2])):
+            occupied_edges.append("left")
+        if np.array_equal(np.unique(right_col), np.array([1, 2])):
+            occupied_edges.append("right")
+
+        if occupied_edges:
+            for side in occupied_edges:
+                if side == "top":
+                    for i in range(0,7):
+                        if board[0][i] == self.own_id:
+                            unflippableTable[0][i] = 'u'
+                elif side == "bottom":
+                    for i in range(0,7):
+                        if board[7][i] == self.own_id:
+                            unflippableTable[7][i] = 'u'
+                elif side == "left":
+                    for i in range(0,7):
+                        if board[i][0] == self.own_id:
+                            unflippableTable[i][0] = 'u'
+                elif side == "right":
+                    for i in range(0,7):
+                        if board[i][7] == self.own_id:
+                            unflippableTable[i][7] = 'u'
+
+        iterate = 0
+        # Change this to update while there was a change in the previous loop
+        while iterate < 15:
+            # Calculate which edges are unflippable
+            for edge in edges:
+                row, col = edge
+                if unflippableTable[row][col] == 'u':
+                    continue
+                if board[row][col] == self.own_id:
+                    for i in [-1, 0, 1]:
+                        for j in [-1, 0, 1]:
+                            if (i == 0 and j == 0) or (i == 1 and j == 1) or (i == -1 and j == -1) or (i == 1 and j == -1) or (i == -1 and j == 1):
+                                continue
+                            adj_row = row + i
+                            adj_col = col + j
+                            if 0 <= adj_row < 8 and 0 <= adj_col < 8 and unflippableTable[adj_row][adj_col] in ['u']:
+                                unflippableTable[row][col] = 'u'        
+
+            directions = [0,1,2,3,4,5,6,7] # up, up-right, right, down-right, down, down-left, left, up-left
+            coordinates = [(-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1),(-1,-1)]
+
+            for x in range(1,7):
+                for y in range(1,7):
+                    surroundingUnflippables = 0
+                    unflippableList = []
+                    if board[x][y] == 0:
                         continue
-                    cur_direction = np.zeros((8, 8), dtype=bool)
-                    cur_direction[cur_row, cur_col] = True
-                    
-                    # Keep going in the same direction while we're on the board and we're on empty squares
-                    while (cur_row >= 0 and cur_row <= 7 and cur_col >= 0 and cur_col <= 7 and 
-                        empty_mask[cur_row, cur_col] and np.any(cur_direction & surround_mask)):
-                        cur_direction[cur_row, cur_col] = True
-                        cur_row += drow
-                        cur_col += dcol
-                    
-                    # If we've reached a player's disc, mark the squares between the opponent's disc and the player's disc as unflippable
-                    if (cur_row >= 0 and cur_row <= 7 and cur_col >= 0 and cur_col <= 7 and 
-                        player_mask[cur_row, cur_col] and np.any(cur_direction & surround_mask)):
-                        unflippable_mask[opp_direction] = True
-            
-        # Count the number of temporarily unflippable discs
-        unflippable_discs = np.sum(unflippable_mask & player_mask)
-        
-        return unflippable_discs
+                    for i in range(len(directions)):
+                        if unflippableTable[x + coordinates[i][0]][y + coordinates[i][1]] == 'u':
+                            surroundingUnflippables += 1
+                            unflippableList.append(i)
+                    if len(unflippableList) >= 4:
+                        numbersInARow = 0
+                        orderedList1 = []
+                        orderedList2 = []
+                        currentIndex = 0
+                        for i in range(len(unflippableList)):
+                            if unflippableList[i] == 0:
+                                orderedList1.append(unflippableList[i])
+                                continue
+                            elif unflippableList[i] - unflippableList[i - 1] == self.own_id:
+                                orderedList1.append(unflippableList[i])
+                            elif unflippableList[i] - unflippableList[i - 1] != self.own_id:
+                                orderedList2.append(unflippableList[i])
+                                currentIndex = i
+                                break
+                        for i in range(currentIndex + 1, len(unflippableList)):
+                            if unflippableList[i] - unflippableList[i - 1] == self.own_id:
+                                orderedList2.append(unflippableList[i])
+                        finalOrderedList = orderedList2 + orderedList1
+                        for i in range(len(finalOrderedList)):
+                            if i == 0:
+                                continue
+                            if (finalOrderedList[i] == finalOrderedList[i-1] + 1) or (finalOrderedList[i] == finalOrderedList[i-1] - 7):
+                                if i == 1:
+                                    numbersInARow += 1
+                                numbersInARow += 1
+                                continue
+                        
+                        if numbersInARow >= 4:
+                            unflippableTable[x][y] = 'u'
+            iterate += 1
+        unflippabeCoords = []
+        for x in range(unflippableTable.shape[0]):
+            for y in range(unflippableTable.shape[1]):
+                if unflippableTable[x][y] == 'u':
+                    unflippabeCoords.append((x,y))
+        return unflippabeCoords
 
     def cornerDangerZones(self, state: ReversiGameState):
-        dangerCoords = [(1,1), (1,6), (6,1), (6,6), (0,1), (1,0), (0,6), (1,7), (6,0), (7,1), (6,7), (7,6)]
+        dangerCoords = [(0,1),(1,0),(1,1),
+                    (0,6),(1,6),(1,7),
+                    (6,0),(6,1),(7,1),          
+                    (6,6),(6,7),(7,6)]
         corners = [(0,0), (0,7), (7,0), (7,7)]
         dangerCount = 0
+
+        unflippableCoords = self.permanentUnflippableDiscs(state)
+
         for corner in corners:
             row, col = corner
             if state.board[row][col] != 0: # Skip if corner is already occupied
                 continue
-            for coord in dangerCoords:
-                row_offset, col_offset = coord
-                danger_row = row + row_offset
-                danger_col = col + col_offset
-                if (0 <= danger_row < 8) and (0 <= danger_col < 8) and (state.board[danger_row][danger_col] == self.own_id):
-                    # Check if the disc in the danger zone is flippable
-                    flip_row = danger_row + row_offset
-                    flip_col = danger_col + col_offset
-                    while (0 <= flip_row < 8) and (0 <= flip_col < 8) and (state.board[flip_row][flip_col] == -self.own_id):
-                        flip_row += row_offset
-                        flip_col += col_offset
-                    if (0 <= flip_row < 8) and (0 <= flip_col < 8) and (state.board[flip_row][flip_col] == self.own_id):
+            if corner == (0,0):
+                for i in range(3):
+                    if state.board[dangerCoords[i][0]][dangerCoords[i][1]] == self.own_id and (dangerCoords[i] not in unflippableCoords):
                         dangerCount += 1
-                elif (0 <= danger_row < 8) and (0 <= danger_col < 8) and (state.board[danger_row][danger_col] == -self.own_id):
-                    # Check if the disc in the danger zone is unflippable
-                    flip_row = danger_row + row_offset
-                    flip_col = danger_col + col_offset
-                    while (0 <= flip_row < 8) and (0 <= flip_col < 8) and (state.board[flip_row][flip_col] == -self.own_id):
-                        flip_row += row_offset
-                        flip_col += col_offset
-                    if (0 <= flip_row < 8) and (0 <= flip_col < 8) and (state.board[flip_row][flip_col] == self.own_id):
-                        pass
-                    else:
+                    elif state.board[dangerCoords[i][0]][dangerCoords[i][1]] == self.own_id and (dangerCoords[i] in unflippableCoords):
+                        continue
+            if corner == (0,7):
+                for i in range(3,6):
+                    if state.board[dangerCoords[i][0]][dangerCoords[i][1]] == self.own_id and (dangerCoords[i] not in unflippableCoords):
                         dangerCount += 1
+                    elif state.board[dangerCoords[i][0]][dangerCoords[i][1]] == self.own_id and (dangerCoords[i] in unflippableCoords):
+                        continue
+            if corner == (7,0):
+                for i in range(6,9):
+                    if state.board[dangerCoords[i][0]][dangerCoords[i][1]] == self.own_id and (dangerCoords[i] not in unflippableCoords):
+                        dangerCount += 1
+                    elif state.board[dangerCoords[i][0]][dangerCoords[i][1]] == self.own_id and (dangerCoords[i] in unflippableCoords):
+                        continue
+            if corner == (7,7):
+                for i in range(9,12):
+                    if state.board[dangerCoords[i][0]][dangerCoords[i][1]] == self.own_id and (dangerCoords[i] not in unflippableCoords):
+                        dangerCount += 1
+                    elif state.board[dangerCoords[i][0]][dangerCoords[i][1]] == self.own_id and (dangerCoords[i] in unflippableCoords):
+                        continue
+
         return dangerCount
+
+    def validMoves(self, state: ReversiGameState):
+        hypotheticalState = ReversiGameState(state.board, self.own_id)
+        numMoves = len(hypotheticalState.get_valid_moves())
+        return numMoves
 
     @cache
     def heuristic(self, state: ReversiGameState):
         # Main heuristic function that calls the other various heuristic functions and applies multipliers to them
         # We may change multiplier values based on the number of turns left
-        '''
-      ___________________   ________   ________         ________   ________    _______ /\___________    ___________________  __________   ________ ______________________    ___________________       _________    ___ ___     _____    _______     ________ ___________    ___________ ___ ___ ___________      ___ ___ ___________ ____ ___ __________ .___   ____________________.___ _________        _________ ____ ___ _________    ___ ___      ___________ ___ ___     _____ ___________    .___ ___________    .___   _________       _____   .____    __      __   _____  _____.___.  _________       _____      _____   ____  ___.___    _____   .___ __________.___  _______     ________     ________    ____ ___ __________     __________ .____        _____  _____.___._____________________     ____   ____ _____   .____      ____ ___ ___________  _________       _______   ________ ___________    __________ ________ ___________ ___ ___      __________ .____        _____  _____.___._____________________     ____   ____ _____   .____      ____ ___ ___________  _________ 
-      \__    ___/\_____  \  \______ \  \_____  \  /\    \______ \  \_____  \   \      \\(\__    ___/    \_   _____/\_____  \ \______   \ /  _____/ \_   _____/\__    ___/    \__    ___/\_____  \      \_   ___ \  /   |   \   /  _  \   \      \   /  _____/ \_   _____/    \__    ___//   |   \\_   _____/     /   |   \\_   _____/|    |   \\______   \|   | /   _____/\__    ___/|   |\_   ___ \      /   _____/|    |   \\_   ___ \  /   |   \     \__    ___//   |   \   /  _  \\__    ___/    |   |\__    ___/    |   | /   _____/      /  _  \  |    |  /  \    /  \ /  _  \ \__  |   | /   _____/      /     \    /  _  \  \   \/  /|   |  /     \  |   |\____    /|   | \      \   /  _____/     \_____  \  |    |   \\______   \    \______   \|    |      /  _  \ \__  |   |\_   _____/\______   \    \   \ /   //  _  \  |    |    |    |   \\_   _____/ /   _____/       \      \  \_____  \\__    ___/    \______   \\_____  \\__    ___//   |   \     \______   \|    |      /  _  \ \__  |   |\_   _____/\______   \    \   \ /   //  _  \  |    |    |    |   \\_   _____/ /   _____/ 
-        |    |    /   |   \  |    |  \  /   |   \ \/     |    |  \  /   |   \  /   |   \   |    |        |    __)   /   |   \ |       _//   \  ___  |    __)_   |    |         |    |    /   |   \     /    \  \/ /    ~    \ /  /_\  \  /   |   \ /   \  ___  |    __)_       |    |  /    ~    \|    __)_     /    ~    \|    __)_ |    |   / |       _/|   | \_____  \   |    |   |   |/    \  \/      \_____  \ |    |   //    \  \/ /    ~    \      |    |  /    ~    \ /  /_\  \ |    |       |   |  |    |       |   | \_____  \      /  /_\  \ |    |  \   \/\/   //  /_\  \ /   |   | \_____  \      /  \ /  \  /  /_\  \  \     / |   | /  \ /  \ |   |  /     / |   | /   |   \ /   \  ___      /   |   \ |    |   / |       _/     |     ___/|    |     /  /_\  \ /   |   | |    __)_  |       _/     \   Y   //  /_\  \ |    |    |    |   / |    __)_  \_____  \        /   |   \  /   |   \ |    |        |    |  _/ /   |   \ |    |  /    ~    \     |     ___/|    |     /  /_\  \ /   |   | |    __)_  |       _/     \   Y   //  /_\  \ |    |    |    |   / |    __)_  \_____  \  
-        |    |   /    |    \ |    `   \/    |    \/\     |    `   \/    |    \/    |    \  |    |        |     \   /    |    \|    |   \\    \_\  \ |        \  |    |         |    |   /    |    \    \     \____\    Y    //    |    \/    |    \\    \_\  \ |        \      |    |  \    Y    /|        \    \    Y    /|        \|    |  /  |    |   \|   | /        \  |    |   |   |\     \____     /        \|    |  / \     \____\    Y    /      |    |  \    Y    //    |    \|    |       |   |  |    |       |   | /        \    /    |    \|    |___\        //    |    \\____   | /        \    /    Y    \/    |    \ /     \ |   |/    Y    \|   | /     /_ |   |/    |    \\    \_\  \    /    |    \|    |  /  |    |   \     |    |    |    |___ /    |    \\____   | |        \ |    |   \      \     //    |    \|    |___ |    |  /  |        \ /        \      /    |    \/    |    \|    |        |    |   \/    |    \|    |  \    Y    /     |    |    |    |___ /    |    \\____   | |        \ |    |   \      \     //    |    \|    |___ |    |  /  |        \ /        \ 
-        |____|   \_______  //_______  /\_______  /\/    /_______  /\_______  /\____|__  /  |____|        \___  /   \_______  /|____|_  / \______  //_______  /  |____|         |____|   \_______  /     \______  / \___|_  / \____|__  /\____|__  / \______  //_______  /      |____|   \___|_  //_______  /     \___|_  //_______  /|______/   |____|_  /|___|/_______  /  |____|   |___| \______  /    /_______  /|______/   \______  / \___|_  /       |____|   \___|_  / \____|__  /|____|       |___|  |____|       |___|/_______  /    \____|__  /|_______ \\__/\  / \____|__  // ______|/_______  /    \____|__  /\____|__  //___/\  \|___|\____|__  /|___|/_______ \|___|\____|__  / \______  /    \_______  /|______/   |____|_  /     |____|    |_______ \\____|__  // ______|/_______  / |____|_  /       \___/ \____|__  /|_______ \|______/  /_______  //_______  //\    \____|__  /\_______  /|____|        |______  /\_______  /|____|   \___|_  /      |____|    |_______ \\____|__  // ______|/_______  / |____|_  /       \___/ \____|__  /|_______ \|______/  /_______  //_______  / 
-                        \/         \/         \/               \/         \/         \/                     \/            \/        \/         \/         \/                                   \/             \/        \/          \/         \/         \/         \/                      \/         \/            \/         \/                   \/              \/                         \/             \/                   \/        \/                       \/          \/                                               \/             \/         \/     \/          \/ \/               \/             \/         \/       \_/             \/              \/             \/         \/             \/                   \/                        \/        \/ \/               \/         \/                      \/         \/                  \/         \/ )/            \/         \/                      \/         \/                \/                         \/        \/ \/               \/         \/                      \/         \/                  \/         \/  
-        '''
         self.evaluations += 1
         moves_left = state.turns_remaining()
 
@@ -253,10 +277,44 @@ class ReversiBot:
         corners = self.cornersCaptured(state)
         edges = self.edgesCaptured(state)
         sides = self.fullEdgesCaptured(state)
-        unflippable = self.permanentUnflippableDiscs(state)
-        tempUnflippable = self.tempUnflippableDiscs(state)
+        unflippable = len(self.permanentUnflippableDiscs(state))
         cornerDangerZone = self.cornerDangerZones(state)
-        # mobility = self.availableMoves(state)
+        mobility = self.validMoves(state)
+
+        # max and min values for each heuristic function
+        max_discs = 64
+        min_discs = 0
+
+        max_parity = 64
+        min_parity = -64
+
+        max_corners = 4
+        min_corners = 0
+
+        max_edges = 24
+        min_edges = 0
+
+        max_sides = 4
+        min_sides = 0
+
+        max_unflippable = 64
+        min_unflippable = 0
+
+        max_corner_danger_zone = 0
+        min_corner_danger_zone = -12
+
+        max_mobility = 15
+        min_mobility = 0
+
+        # normalize each heuristic value
+        normalized_discs = (discs - min_discs) / (max_discs - min_discs)
+        normalized_parity = (parity - min_parity) / (max_parity - min_parity) * 2 - 1  # scale to range from -1 to 1
+        normalized_corners = (corners - min_corners) / (max_corners - min_corners)
+        normalized_edges = (edges - min_edges) / (max_edges - min_edges)
+        normalized_sides = (sides - min_sides) / (max_sides - min_sides)
+        normalized_unflippable = (unflippable - min_unflippable) / (max_unflippable - min_unflippable)
+        normalized_corner_danger_zone = (cornerDangerZone - max_corner_danger_zone) / (min_corner_danger_zone - max_corner_danger_zone) # scale to range from -1 to 0
+        normalized_mobility = (mobility - min_mobility) / (max_mobility - min_mobility)
       
         # Set initial weights
         discs_weight = 0
@@ -265,57 +323,87 @@ class ReversiBot:
         edges_weight = 0
         sides_weight = 0
         unflippable_weight = 0
-        tempUnflippable_weight = 0
         cornerDangerZone_weight = 0
-        # mobility_weight = 0
+        mobility_weight = 0
 
         if moves_left <= 64:
-            discs_weight = 1
-            parity_weight = 1
-            corners_weight = 80
-            edges_weight = 50
-            sides_weight = 50
-            unflippable_weight = 8
-            tempUnflippable = 5
-            cornerDangerZone_weight = -15
-        if moves_left <= 50:
-            ...
-        if moves_left <= 40:
-            unflippable_weight = 50
-        if moves_left <= 30:
-            ...
-        if moves_left <= 20:
-            discs_weight = 45
-            tempUnflippable_weight = 8
-            corners_weight = 100
-        if moves_left <= 15:
-            ...
-        if moves_left <= 10:
-            discs_weight = 100
-            parity_weight = 30
-            corners_weight = 10
+            discs_weight = 20
+            parity_weight = 5
+            corners_weight = 15
             edges_weight = 10
-            sides_weight = 30
-            unflippable_weight = 15
-            tempUnflippable = 10
-            cornerDangerZone_weight = -5
-        if moves_left <= 5:
-            # discs_weight = .9
-            # parity_weight = .9
-            ...
-        if moves_left == 1:
+            sides_weight = 15
+            unflippable_weight = 10
+            cornerDangerZone_weight = 5
+            mobility_weight = 20
+        if moves_left <= 50:
+            discs_weight = 15
+            parity_weight = 0
+            corners_weight = 20
+            edges_weight = 10
+            sides_weight = 10
+            unflippable_weight = 20
+            cornerDangerZone_weight = 10
+            mobility_weight = 15
+        if moves_left <= 40:
+            discs_weight = 15
+            parity_weight = 0
+            corners_weight = 20
+            edges_weight = 10
+            sides_weight = 15
+            unflippable_weight = 20
+            cornerDangerZone_weight = 10
+            mobility_weight = 10
+        if moves_left <= 30:
+            discs_weight = 20
+            parity_weight = 0
+            corners_weight = 15
+            edges_weight = 0
+            sides_weight = 20
+            unflippable_weight = 10
+            cornerDangerZone_weight = 10
+            mobility_weight = 5
+        if moves_left <= 20:
+            discs_weight = 40
+            parity_weight = 100
+            corners_weight = 5
+            edges_weight = 5
+            sides_weight = 20
+            unflippable_weight = 20
+            cornerDangerZone_weight = 0
+            mobility_weight = 0
+        if moves_left <= 15:
+            discs_weight = 65
+            parity_weight = 0
+            corners_weight = 0
+            edges_weight = 0
+            sides_weight = 5
+            unflippable_weight = 30
+            cornerDangerZone_weight = 0
+            mobility_weight = 0
+        if moves_left <= 10:
             discs_weight = 100
             parity_weight = 0
             corners_weight = 0
             edges_weight = 0
             sides_weight = 0
             unflippable_weight = 0
-            tempUnflippable = 0
             cornerDangerZone_weight = 0
+            mobility_weight = 0
+        if moves_left <= 5:
+            ...
+        if moves_left == 1:
+            discs_weight = 100
+            parity_weight = 0
+            corners_weight = 0
+            edges_weight =0
+            sides_weight = 0
+            unflippable_weight = 0
+            cornerDangerZone_weight = 0
+            mobility_weight = 0
         
-        heuristicScore = (discs * discs_weight) + (parity * parity_weight) + (corners * corners_weight) + \
-                        (edges * edges_weight) + (sides * sides_weight) + (unflippable * unflippable_weight) + \
-                        (tempUnflippable * tempUnflippable_weight) + (cornerDangerZone * cornerDangerZone_weight)
+        heuristicScore = (normalized_discs * discs_weight) + (normalized_parity * parity_weight) + (normalized_corners * corners_weight) + \
+                        (normalized_edges * edges_weight) + (normalized_sides * sides_weight) + (normalized_unflippable * unflippable_weight) + \
+                        (normalized_corner_danger_zone * cornerDangerZone_weight) + (normalized_mobility * mobility_weight)
         
         return heuristicScore
         
