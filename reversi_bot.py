@@ -392,10 +392,11 @@ class ReversiBot:
         Move should be a tuple (row, col) of the move you want the bot to make.
         """
         valid_moves = state.get_valid_moves()
-        DEPTH = 1
+        # more moves as it gets deeper into the game
+        depth = 4 + self.move_num // 10
         best, res = float("-inf"), None
         for move in valid_moves:
-            score = self.minimax(state, move, DEPTH, float("-inf"), float("inf"))
+            score = self.minimax(state, move, depth, float("-inf"), float("inf"))
             if score > best:
                 best = score
                 res = move
