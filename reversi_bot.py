@@ -2,7 +2,6 @@ from pathlib import Path
 import numpy as np
 from functools import cache, wraps
 from typing import Tuple, Union, List
-
 from state import ReversiGameState
 import pickle
 
@@ -470,7 +469,7 @@ class ReversiBot:
         """
         valid_moves = state.get_valid_moves()
         # more moves as it gets deeper into the game
-        depth = 2 + self.move_num // 10
+        depth = 3 #+ self.move_num // 15
         best, res = float("-inf"), None
         for move in valid_moves:
             score = self.minimax(state, move, depth, float("-inf"), float("inf"))
