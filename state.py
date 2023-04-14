@@ -1,13 +1,14 @@
-from functools import lru_cache
 import itertools
+from functools import lru_cache
 from typing import Tuple
+
 import numpy as np
 
 
 class ReversiGameState:
-    def __init__(self, board, turn):
+    def __init__(self, board: np.ndarray, turn):
         self.board_dim = 8  # Reversi is played on an 8x8 board
-        self.board = board
+        self.board: np.ndarray = board
         self.turn = turn  # Whose turn is it
 
     def __capture_will_occur(self, row, col, xdir, ydir, could_capture=0):

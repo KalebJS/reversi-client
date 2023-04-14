@@ -1,6 +1,7 @@
-import numpy as np
 import random as rand
 import time
+
+import numpy as np
 import reversi
 
 

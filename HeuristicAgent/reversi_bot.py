@@ -1,9 +1,10 @@
-import numpy as np
-import random as rand
-import time
-import reversi
-import shelve
 import random
+import random as rand
+import shelve
+import time
+
+import numpy as np
+import reversi
 
 memo = {}
 moveNumber = 0

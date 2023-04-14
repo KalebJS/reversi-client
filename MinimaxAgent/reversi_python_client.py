@@ -1,5 +1,6 @@
-import reversi
 import sys
+
+import reversi
 
 if __name__ == "__main__":
     server_address = sys.argv[1]

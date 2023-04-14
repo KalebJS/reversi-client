@@ -37,5 +37,5 @@ class TestReversiGameState(unittest.TestCase):
         assert self.bot.evaluations == start + len(s)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -1,8 +1,9 @@
-import math
-import numpy as np
-import random as rand
-import reversi
 import itertools
+import math
+import random as rand
+
+import numpy as np
+import reversi
 
 
 class ReversiBot:

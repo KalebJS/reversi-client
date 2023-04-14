@@ -11,4 +11,4 @@ java -jar BL1M3Y.jar localhost 1 <<< "0" &
 sleep 2  # Wait for 2 seconds
 
 # Change to the glitch directory and run the third command in the background
-python client_ai.py localhost 2 &
+python -m cProfile -o result.prof client_ai.py localhost 2 &

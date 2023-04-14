@@ -1,8 +1,10 @@
-import numpy as np
-import reversi_bot
 import socket
 import sys
 import time
+
+import numpy as np
+
+import reversi_bot
 
 
 class ReversiServerConnection:
