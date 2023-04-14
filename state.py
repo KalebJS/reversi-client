@@ -92,5 +92,8 @@ class ReversiGameState:
         # TODO - this is a bit of a hack, but it works for now
         return np.sum(self.board == 0)
 
+    def __eq__(self, other):
+        return np.array_equal(self.board, other.board)
+
     def __hash__(self):
-        return hash(self.board.tostring())
+        return hash(self.board.tobytes())

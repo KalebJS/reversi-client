@@ -296,7 +296,7 @@ class ReversiBot:
         max_sides = 4
         min_sides = 0
 
-        max_unflippable = 64
+        max_unflippable = np.sum(state.board != 0)
         min_unflippable = 0
 
         max_corner_danger_zone = 0
@@ -306,8 +306,12 @@ class ReversiBot:
         min_mobility = 0
 
         # normalize each heuristic value
-        normalized_discs = (discs - min_discs) / (max_discs - min_discs)
-        normalized_parity = (parity - min_parity) / (max_parity - min_parity) * 2 - 1  # scale to range from -1 to 1
+        # normalized_discs = (discs - min_discs) / (max_discs - min_discs)
+        # if the below is ever 1 this is a winning state
+        normalized_discs = discs / np.sum(state.board != 0)
+        # normalized_parity = (parity - min_parity) / (max_parity - min_parity) * 2 - 1  # scale to range from -1 to 1
+        # if the below is ever 1 this is a winning state
+        normalized_parity = parity / np.sum(state.board != 0)
         normalized_corners = (corners - min_corners) / (max_corners - min_corners)
         normalized_edges = (edges - min_edges) / (max_edges - min_edges)
         normalized_sides = (sides - min_sides) / (max_sides - min_sides)
@@ -326,73 +330,76 @@ class ReversiBot:
         mobility_weight = 0
 
         if moves_left <= 64:
-            discs_weight = 10
-            parity_weight = 15
-            corners_weight = 15
+            discs_weight = 5
+            parity_weight = 5
+            corners_weight = 20
+            edges_weight = 20
+            sides_weight = 10
+            unflippable_weight = 15
+            cornerDangerZone_weight = 25
+            # mobility_weight = 20
+        if moves_left <= 50:
+            discs_weight = 5
+            parity_weight = 5
+            corners_weight = 20
+            edges_weight = 20
+            sides_weight = 10
+            unflippable_weight = 15
+            cornerDangerZone_weight = 25
+            # mobility_weight = 15
+        if moves_left <= 40:
+            discs_weight = 5
+            parity_weight = 7
+            corners_weight = 20
             edges_weight = 15
             sides_weight = 10
-            unflippable_weight = 5
-            cornerDangerZone_weight = 10
-            mobility_weight = 20
-        if moves_left <= 50:
-            discs_weight = 10
-            parity_weight = 10
-            corners_weight = 20
-            edges_weight = 10
-            sides_weight = 5
-            unflippable_weight = 10
-            cornerDangerZone_weight = 20
-            mobility_weight = 15
-        if moves_left <= 40:
-            discs_weight = 20
-            parity_weight = 10
-            corners_weight = 20
-            edges_weight = 10
-            sides_weight = 5
             unflippable_weight = 20
-            cornerDangerZone_weight = 10
-            mobility_weight = 5
+            cornerDangerZone_weight = 23
+            # mobility_weight = 5
         if moves_left <= 30:
-            discs_weight = 20
-            parity_weight = 10
+            discs_weight = 10
+            parity_weight = 15
             corners_weight = 20
-            edges_weight = 5
-            sides_weight = 20
-            unflippable_weight = 15
-            cornerDangerZone_weight = 5
-            mobility_weight = 5
+            edges_weight = 10
+            sides_weight = 15
+            unflippable_weight = 20
+            cornerDangerZone_weight = 15
+            # mobility_weight = 5
         if moves_left <= 20:
-            discs_weight = 35
-            parity_weight = 10
+            discs_weight = 10
+            parity_weight = 35
             corners_weight = 5
             edges_weight = 5
-            sides_weight = 20
+            sides_weight = 15
             unflippable_weight = 20
-            cornerDangerZone_weight = 5
-            mobility_weight = 0
+            cornerDangerZone_weight = 10
+            # mobility_weight = 0
         if moves_left <= 15:
-            discs_weight = 65
-            parity_weight = 0
+            discs_weight = 0
+            parity_weight = 47
             corners_weight = 0
             edges_weight = 0
-            sides_weight = 5
-            unflippable_weight = 30
-            cornerDangerZone_weight = 0
-            mobility_weight = 0
+            sides_weight = 10
+            unflippable_weight = 38
+            cornerDangerZone_weight = 5
+            # mobility_weight = 0
         if moves_left <= 10:
-            discs_weight = 100
-            parity_weight = 0
+            discs_weight = 0
+            parity_weight = 100
             corners_weight = 0
             edges_weight = 0
             sides_weight = 0
             unflippable_weight = 0
             cornerDangerZone_weight = 0
-            mobility_weight = 0
-        
-        heuristicScore = (normalized_discs * discs_weight) + (normalized_parity * parity_weight) + (normalized_corners * corners_weight) + \
-                        (normalized_edges * edges_weight) + (normalized_sides * sides_weight) + (normalized_unflippable * unflippable_weight) + \
-                        (normalized_corner_danger_zone * cornerDangerZone_weight) + (normalized_mobility * mobility_weight)
-        
+            # mobility_weight = 0
+
+        heuristicScore = (normalized_discs * discs_weight) + (normalized_parity * parity_weight) + (
+                    normalized_corners * corners_weight) + \
+                         (normalized_edges * edges_weight) + (normalized_sides * sides_weight) + (
+                                     normalized_unflippable * unflippable_weight) + \
+                         (
+                                     normalized_corner_danger_zone * cornerDangerZone_weight)  # + (normalized_mobility * mobility_weight)
+
         return heuristicScore
         
         # return state.get_player_pieces(self.own_id)
@@ -469,7 +476,7 @@ class ReversiBot:
         """
         valid_moves = state.get_valid_moves()
         # more moves as it gets deeper into the game
-        depth = 3 #+ self.move_num // 15
+        depth = 1 + self.move_num // 10
         best, res = float("-inf"), None
         for move in valid_moves:
             score = self.minimax(state, move, depth, float("-inf"), float("inf"))
