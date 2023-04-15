@@ -249,12 +249,12 @@ class ReversiBot:
                         if numbersInARow >= 4:
                             unflippableTable[x][y] = "u"
             iterate += 1
-        unflippabeCoords = []
+        unflippable_coords = []
         for x in range(unflippableTable.shape[0]):
             for y in range(unflippableTable.shape[1]):
                 if unflippableTable[x][y] == "u":
-                    unflippabeCoords.append((x, y))
-        return unflippabeCoords
+                    unflippable_coords.append((x, y))
+        return unflippable_coords
 
     def corner_danger_zones(self, state: ReversiGameState):
         danger_coords = [(0, 1), (1, 0), (1, 1), (0, 6), (1, 6), (1, 7), (6, 0), (6, 1), (7, 1), (6, 6), (6, 7), (7, 6)]
