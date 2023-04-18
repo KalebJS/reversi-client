@@ -1,5 +1,5 @@
 import itertools
-from functools import lru_cache
+from functools import lru_cache, cache
 from typing import Tuple
 
 import numpy as np
@@ -49,7 +49,7 @@ class ReversiGameState:
         # get a sum of all pieces on board that == player_id
         return np.sum(self.board == player_id)
 
-    @lru_cache
+    @cache
     def get_valid_moves(self):
         valid_moves = []
 

@@ -28,6 +28,9 @@ class ReversiBot:
         self.own_id = move_num
         self.opponent_id = 3 - move_num
         self.evaluations = 0
+        # self.weights = [[26, 56, 49, 39, 49, 22, 48], [61, 4, 6, 93, -3, 38, 57], [19, 49, 17, 76, 62, 25, 92], [36, 43, 84, 68, 51, 29, 64], [17, 28, 46, 41, 4, 83, 27], [82, 102, 76, 9, 29, 68, 91], [69, 68, 94, 33, 63, -1, 94]]
+        self.weights = [[5, 5, 20, 20, 10, 15, 25], [5, 5, 20, 20, 10, 15, 25], [5, 7, 20, 15, 10, 20, 23], [10, 15, 20, 10, 15, 20, 15], [10, 35, 5, 5, 15, 20, 10], [0, 47, 0, 0, 10, 38, 5], [0, 100, 0, 0, 0, 0, 0]]
+
 
     def count_discs(self, state: ReversiGameState):
         # Get total discs for the current player
@@ -44,9 +47,7 @@ class ReversiBot:
         Get the number of corners captured by the current player
         """
         corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
-        return sum(
-            state.board[corner[0]][corner[1]] == self.own_id for corner in corners
-        )
+        return sum(state.board[corner[0]][corner[1]] == self.own_id for corner in corners)
 
     def edges_captured(self, state: ReversiGameState):
         """
@@ -176,7 +177,9 @@ class ReversiBot:
                     if board[0][i] == self.own_id:
                         unflippableTable[0][i] = "u"
         # Change this to update while there was a change in the previous loop
-        for _ in range(8):
+        tempState = np.copy(unflippableTable)
+        while True:
+        # for _ in range(8):
             # Calculate which edges are unflippable
             for edge in edges:
                 row, col = edge
@@ -228,8 +231,7 @@ class ReversiBot:
                         orderedList2.extend(
                             unflippableList[i]
                             for i in range(currentIndex + 1, len(unflippableList))
-                            if unflippableList[i] - unflippableList[i - 1]
-                            == self.own_id
+                            if unflippableList[i] - unflippableList[i - 1] == self.own_id
                         )
                         finalOrderedList = orderedList2 + orderedList1
                         for i in range(len(finalOrderedList)):
@@ -244,11 +246,12 @@ class ReversiBot:
                                 numbersInARow += 1
                         if numbersInARow >= 4:
                             unflippableTable[x][y] = "u"
+
+            if np.array_equal(tempState, unflippableTable):
+                break
         return [
             (x, y)
-            for x, y in itertools.product(
-                range(unflippableTable.shape[0]), range(unflippableTable.shape[1])
-            )
+            for x, y in itertools.product(range(unflippableTable.shape[0]), range(unflippableTable.shape[1]))
             if unflippableTable[x][y] == "u"
         ]
 
@@ -264,32 +267,28 @@ class ReversiBot:
             if corner == (0, 0):
                 for i in range(3):
                     if (
-                        state.board[danger_coords[i][0]][danger_coords[i][1]]
-                        == self.own_id
+                        state.board[danger_coords[i][0]][danger_coords[i][1]] == self.own_id
                         and danger_coords[i] not in unflippable_coords
                     ):
                         danger_count += 1
             if corner == (0, 7):
                 for i in range(3, 6):
                     if (
-                        state.board[danger_coords[i][0]][danger_coords[i][1]]
-                        == self.own_id
+                        state.board[danger_coords[i][0]][danger_coords[i][1]] == self.own_id
                         and danger_coords[i] not in unflippable_coords
                     ):
                         danger_count += 1
             if corner == (7, 0):
                 for i in range(6, 9):
                     if (
-                        state.board[danger_coords[i][0]][danger_coords[i][1]]
-                        == self.own_id
+                        state.board[danger_coords[i][0]][danger_coords[i][1]] == self.own_id
                         and danger_coords[i] not in unflippable_coords
                     ):
                         danger_count += 1
             if corner == (7, 7):
                 for i in range(9, 12):
                     if (
-                        state.board[danger_coords[i][0]][danger_coords[i][1]]
-                        == self.own_id
+                        state.board[danger_coords[i][0]][danger_coords[i][1]] == self.own_id
                         and danger_coords[i] not in unflippable_coords
                     ):
                         danger_count += 1
@@ -298,6 +297,131 @@ class ReversiBot:
     def valid_moves(self, state: ReversiGameState):
         hypothetical_state = ReversiGameState(state.board, self.own_id)
         return len(hypothetical_state.get_valid_moves())
+
+    stability_matrix = np.array(
+        [
+            [120, -20, 20, 5, 5, 20, -20, 120],
+            [-20, -40, 1, 1, 1, 1, -40, -20],
+            [20, 1, 5, 2, 2, 5, 1, 20],
+            [5, 1, 2, 1, 1, 2, 1, 5],
+            [5, 1, 2, 1, 1, 2, 1, 5],
+            [20, 1, 5, 2, 2, 5, 1, 20],
+            [-20, -40, 1, 1, 1, 1, -40, -20],
+            [120, -20, 20, 5, 5, 20, -20, 120],
+        ]
+    )
+
+    def own_value(self, state: ReversiGameState):
+        """
+        calculates value based on stability matrix
+        :param state:
+        :return:
+        """
+        # corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+        # for corner in corners:
+        #     if state.board[corner[0]][corner[1]] != 0:
+        #           if corner == (0, 0):
+        #               self.stability_matrix[0][1] = 20
+        #               self.stability_matrix[1][1] = 20
+        #               self.stability_matrix[1][0] = 20
+        #           if corner == (0, 7):
+        #               self.stability_matrix[0][6] = 20
+        #               self.stability_matrix[1][6] = 20
+        #               self.stability_matrix[1][7] = 20
+        #           if corner == (7, 0):
+        #               self.stability_matrix[6][0] = 20
+        #               self.stability_matrix[6][1] = 20
+        #               self.stability_matrix[7][1] = 20
+        #           if corner == (7, 7):
+        #               self.stability_matrix[6][0] = 20
+        #               self.stability_matrix[6][1] = 20
+        #               self.stability_matrix[7][1] = 20
+
+
+        value = 0
+        for i in range(8):
+            for j in range(8):
+                if state.board[i][j] == self.own_id:
+                    value += self.stability_matrix[i][j]
+        return value
+
+    def get_weights(self, moves_left):
+        weights = self.weights
+
+        if moves_left <= 64:
+            discs_weight = weights[0][0]
+            parity_weight = weights[0][1]
+            corners_weight = weights[0][2]
+            edges_weight = weights[0][3]
+            sides_weight = weights[0][4]
+            unflippable_weight = weights[0][5]
+            corner_danger_zone_weight = weights[0][6]
+        if moves_left <= 50:
+            discs_weight = weights[1][0]
+            parity_weight = weights[1][1]
+            corners_weight = weights[1][2]
+            edges_weight = weights[1][3]
+            sides_weight = weights[1][4]
+            unflippable_weight = weights[1][5]
+            corner_danger_zone_weight = weights[1][6]
+        if moves_left <= 40:
+            discs_weight = weights[2][0]
+            parity_weight = weights[2][1]
+            corners_weight = weights[2][2]
+            edges_weight = weights[2][3]
+            sides_weight = weights[2][4]
+            unflippable_weight = weights[2][5]
+            corner_danger_zone_weight = weights[2][6]
+        if moves_left <= 30:
+            discs_weight = weights[3][0]
+            parity_weight = weights[3][1]
+            corners_weight = weights[3][2]
+            edges_weight = weights[3][3]
+            sides_weight = weights[3][4]
+            unflippable_weight = weights[3][5]
+            corner_danger_zone_weight = weights[3][6]
+        if moves_left <= 20:
+            discs_weight = weights[4][0]
+            parity_weight = weights[4][1]
+            corners_weight = weights[4][2]
+            edges_weight = weights[4][3]
+            sides_weight = weights[4][4]
+            unflippable_weight = weights[4][5]
+            corner_danger_zone_weight = weights[4][6]
+            # mobility_weight = weights[0]
+        if moves_left <= 15:
+            discs_weight = weights[5][0]
+            parity_weight = weights[5][1]
+            corners_weight = weights[5][2]
+            edges_weight = weights[5][3]
+            sides_weight = weights[5][4]
+            unflippable_weight = weights[5][5]
+            corner_danger_zone_weight = weights[5][6]
+        if moves_left <= 10:
+            discs_weight = weights[6][0]
+            parity_weight = weights[6][1]
+            corners_weight = weights[6][2]
+            edges_weight = weights[6][3]
+            sides_weight = weights[6][4]
+            unflippable_weight = weights[6][5]
+            corner_danger_zone_weight = weights[6][6]
+        if moves_left <= 2:
+            discs_weight = 0
+            parity_weight = 100
+            corners_weight = 0
+            edges_weight = 0
+            sides_weight = 0
+            unflippable_weight = 0
+            corner_danger_zone_weight = 0
+        return (
+            discs_weight,
+            parity_weight,
+            corners_weight,
+            edges_weight,
+            sides_weight,
+            unflippable_weight,
+            corner_danger_zone_weight,
+        )
 
     @cache
     def heuristic(self, state: ReversiGameState):
@@ -311,9 +435,11 @@ class ReversiBot:
         corners = self.corners_captured(state)
         edges = self.edges_captured(state)
         sides = self.full_edges_captured(state)
-        unflippable_coords = self.permanent_unflippable_discs(state)
-        unflippable = len(unflippable_coords)
-        corner_danger_zone = self.corner_danger_zones(state, unflippable_coords)
+        # unflippable_coords = self.permanent_unflippable_discs(state) if corners else []
+        # unflippable = len(unflippable_coords)
+        # corner_danger_zone = self.corner_danger_zones(state, unflippable_coords) if unflippable else 0
+        # num_valid_moves = self.valid_moves(state)
+        value = self.own_value(state)
 
         # max and min values for each heuristic function
         max_discs = 64
@@ -337,8 +463,8 @@ class ReversiBot:
         max_corner_danger_zone = 0
         min_corner_danger_zone = -12
 
-        max_mobility = 15
-        min_mobility = 0
+        max_num_valid_moves = 15
+        min_num_valid_moves = 0
 
         # normalize each heuristic value
         # normalized_discs = (discs - min_discs) / (max_discs - min_discs)
@@ -350,10 +476,12 @@ class ReversiBot:
         normalized_corners = (corners - min_corners) / (max_corners - min_corners)
         normalized_edges = (edges - min_edges) / (max_edges - min_edges)
         normalized_sides = (sides - min_sides) / (max_sides - min_sides)
-        normalized_unflippable = (unflippable - min_unflippable) / (max_unflippable - min_unflippable)
-        normalized_corner_danger_zone = (corner_danger_zone - max_corner_danger_zone) / (
-            min_corner_danger_zone - max_corner_danger_zone
-        )  # scale to range from -1 to 0
+        # normalized_unflippable = (unflippable - min_unflippable) / (max_unflippable - min_unflippable)
+        # normalized_corner_danger_zone = (corner_danger_zone - max_corner_danger_zone) / (
+        #     min_corner_danger_zone - max_corner_danger_zone
+        # )  # scale to range from -1 to 0
+        # normalized_num_valid_moves = num_valid_moves / (max_num_valid_moves)
+        normalized_value = value / np.sum(state.board != 0)
 
         # Set initial weights
         discs_weight = 0
@@ -363,64 +491,18 @@ class ReversiBot:
         sides_weight = 0
         unflippable_weight = 0
         corner_danger_zone_weight = 0
+        num_valid_moves_weight = 0
+        value_weight = 0
 
-        if moves_left <= 64:
-            discs_weight = 5
-            parity_weight = 5
-            corners_weight = 20
-            edges_weight = 20
-            sides_weight = 10
-            unflippable_weight = 15
-            corner_danger_zone_weight = 25
-        if moves_left <= 50:
-            discs_weight = 5
-            parity_weight = 5
-            corners_weight = 20
-            edges_weight = 20
-            sides_weight = 10
-            unflippable_weight = 15
-            corner_danger_zone_weight = 25
-        if moves_left <= 40:
-            discs_weight = 5
-            parity_weight = 7
-            corners_weight = 20
-            edges_weight = 15
-            sides_weight = 10
-            unflippable_weight = 20
-            corner_danger_zone_weight = 23
-        if moves_left <= 30:
-            discs_weight = 10
-            parity_weight = 15
-            corners_weight = 20
-            edges_weight = 10
-            sides_weight = 15
-            unflippable_weight = 20
-            corner_danger_zone_weight = 15
-        if moves_left <= 20:
-            discs_weight = 10
-            parity_weight = 35
-            corners_weight = 5
-            edges_weight = 5
-            sides_weight = 15
-            unflippable_weight = 20
-            corner_danger_zone_weight = 10
-            # mobility_weight = 0
-        if moves_left <= 15:
-            discs_weight = 0
-            parity_weight = 47
-            corners_weight = 0
-            edges_weight = 0
-            sides_weight = 10
-            unflippable_weight = 38
-            corner_danger_zone_weight = 5
-        if moves_left <= 10:
-            discs_weight = 0
-            parity_weight = 100
-            corners_weight = 0
-            edges_weight = 0
-            sides_weight = 0
-            unflippable_weight = 0
-            corner_danger_zone_weight = 0
+        (
+            discs_weight,
+            parity_weight,
+            corners_weight,
+            edges_weight,
+            sides_weight,
+            unflippable_weight,
+            corner_danger_zone_weight,
+        ) = self.get_weights(moves_left)
 
         return (
             (normalized_discs * discs_weight)
@@ -428,8 +510,10 @@ class ReversiBot:
             + (normalized_corners * corners_weight)
             + (normalized_edges * edges_weight)
             + (normalized_sides * sides_weight)
-            + (normalized_unflippable * unflippable_weight)
-            + (normalized_corner_danger_zone * corner_danger_zone_weight)
+            # + (normalized_unflippable * unflippable_weight)
+            # + (normalized_corner_danger_zone * corner_danger_zone_weight)
+            # + (normalized_num_valid_moves * num_valid_moves_weight)
+            + (normalized_value * unflippable_weight)
         )
 
     @dump_board
@@ -504,8 +588,12 @@ class ReversiBot:
         valid_moves = state.get_valid_moves()
         assert valid_moves, "No valid moves"
         # more moves as it gets deeper into the game
-        depth = 3 + self.move_num // 10
-        best, res = float("-inf"), None
+        if self.move_num < 10:
+            depth = 2
+        else:
+            depth = 4
+        depth = 2
+        best, res = -1 * float("inf"), None
         for move in valid_moves:
             score = self.minimax(state, move, depth, float("-inf"), float("inf"))
             if score > best:
@@ -514,7 +602,7 @@ class ReversiBot:
         self.move_num += 1
 
         print(self.evaluations)
-        return res
+        return res if res else [0, 0]
 
 
 if __name__ == "__main__":
