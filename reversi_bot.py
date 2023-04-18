@@ -2,7 +2,7 @@ import itertools
 import pickle
 from functools import cache, wraps
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Tuple, Union
 
 import numpy as np
 
@@ -28,8 +28,19 @@ class ReversiBot:
         self.own_id = move_num
         self.opponent_id = 3 - move_num
         self.evaluations = 0
-        # self.weights = [[26, 56, 49, 39, 49, 22, 48], [61, 4, 6, 93, -3, 38, 57], [19, 49, 17, 76, 62, 25, 92], [36, 43, 84, 68, 51, 29, 64], [17, 28, 46, 41, 4, 83, 27], [82, 102, 76, 9, 29, 68, 91], [69, 68, 94, 33, 63, -1, 94]]
-        self.weights = [[5, 5, 20, 20, 10, 15, 25], [5, 5, 20, 20, 10, 15, 25], [5, 7, 20, 15, 10, 20, 23], [10, 15, 20, 10, 15, 20, 15], [10, 35, 5, 5, 15, 20, 10], [0, 47, 0, 0, 10, 38, 5], [0, 100, 0, 0, 0, 0, 0]]
+        self.stability_matrix: np.ndarray = np.array(
+            [
+                [120, -20, 20, 5, 5, 20, -20, 120],
+                [-20, -40, 1, 1, 1, 1, -40, -20],
+                [20, 1, 5, 2, 2, 5, 1, 20],
+                [5, 1, 2, 1, 1, 2, 1, 5],
+                [5, 1, 2, 1, 1, 2, 1, 5],
+                [20, 1, 5, 2, 2, 5, 1, 20],
+                [-20, -40, 1, 1, 1, 1, -40, -20],
+                [120, -20, 20, 5, 5, 20, -20, 120],
+            ]
+        )
+        self.weights = [[0, 10, 30, 30, 10, 20, 0], [0, 10, 35, 25, 15, 15, 0], [0, 12, 30, 15, 23, 20, 0], [0, 20, 15, 10, 30, 25, 0], [0, 45, 5, 5, 25, 20, 0], [0, 47, 0, 0, 15, 38, 0], [0, 100, 0, 0, 0, 0, 0]]
 
 
     def count_discs(self, state: ReversiGameState):
@@ -298,51 +309,41 @@ class ReversiBot:
         hypothetical_state = ReversiGameState(state.board, self.own_id)
         return len(hypothetical_state.get_valid_moves())
 
-    stability_matrix = np.array(
-        [
-            [120, -20, 20, 5, 5, 20, -20, 120],
-            [-20, -40, 1, 1, 1, 1, -40, -20],
-            [20, 1, 5, 2, 2, 5, 1, 20],
-            [5, 1, 2, 1, 1, 2, 1, 5],
-            [5, 1, 2, 1, 1, 2, 1, 5],
-            [20, 1, 5, 2, 2, 5, 1, 20],
-            [-20, -40, 1, 1, 1, 1, -40, -20],
-            [120, -20, 20, 5, 5, 20, -20, 120],
-        ]
-    )
-
     def own_value(self, state: ReversiGameState):
         """
         calculates value based on stability matrix
         :param state:
         :return:
         """
-        # corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
-        # for corner in corners:
-        #     if state.board[corner[0]][corner[1]] != 0:
-        #           if corner == (0, 0):
-        #               self.stability_matrix[0][1] = 20
-        #               self.stability_matrix[1][1] = 20
-        #               self.stability_matrix[1][0] = 20
-        #           if corner == (0, 7):
-        #               self.stability_matrix[0][6] = 20
-        #               self.stability_matrix[1][6] = 20
-        #               self.stability_matrix[1][7] = 20
-        #           if corner == (7, 0):
-        #               self.stability_matrix[6][0] = 20
-        #               self.stability_matrix[6][1] = 20
-        #               self.stability_matrix[7][1] = 20
-        #           if corner == (7, 7):
-        #               self.stability_matrix[6][0] = 20
-        #               self.stability_matrix[6][1] = 20
-        #               self.stability_matrix[7][1] = 20
+        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+
+        stability_matrix = self.stability_matrix.copy()
+
+        for corner in corners:
+            if state.board[corner[0]][corner[1]] != 0:
+                  if corner == (0, 0):
+                      stability_matrix[0][1] = 50
+                      stability_matrix[1][1] = 20
+                      stability_matrix[1][0] = 50
+                  if corner == (0, 7):
+                      stability_matrix[0][6] = 50
+                      stability_matrix[1][6] = 20
+                      stability_matrix[1][7] = 50
+                  if corner == (7, 0):
+                      stability_matrix[6][0] = 50
+                      stability_matrix[6][1] = 20
+                      stability_matrix[7][1] = 50
+                  if corner == (7, 7):
+                      stability_matrix[6][7] = 50
+                      stability_matrix[6][6] = 20
+                      stability_matrix[7][6] = 50
 
 
         value = 0
         for i in range(8):
             for j in range(8):
                 if state.board[i][j] == self.own_id:
-                    value += self.stability_matrix[i][j]
+                    value += stability_matrix[i][j]
         return value
 
     def get_weights(self, moves_left):
@@ -552,7 +553,12 @@ class ReversiBot:
             best_score = float("inf")
             f = min
 
-        for new_move in move_state.get_valid_moves():
+        moves = move_state.get_valid_moves()
+        l = []
+        for moves in moves:
+            l.append((self.heuristic(move_state.simulate_move(moves)), move))
+        l.sort(key=lambda x: x[0], reverse=True)
+        for _, new_move in l[:10]:
             score = self.minimax(move_state, new_move, depth - 1, alpha, beta)
             best_score = f(score, best_score)
 
@@ -587,12 +593,7 @@ class ReversiBot:
         """
         valid_moves = state.get_valid_moves()
         assert valid_moves, "No valid moves"
-        # more moves as it gets deeper into the game
-        if self.move_num < 10:
-            depth = 2
-        else:
-            depth = 4
-        depth = 2
+        depth = 5
         best, res = -1 * float("inf"), None
         for move in valid_moves:
             score = self.minimax(state, move, depth, float("-inf"), float("inf"))
