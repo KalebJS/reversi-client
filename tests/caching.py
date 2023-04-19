@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from reversi_bot import ReversiBot
-from state import ReversiGameState
+from tets_state import ReversiGameState
 
 
 class TestReversiGameState(unittest.TestCase):
